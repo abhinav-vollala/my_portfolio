@@ -1,0 +1,292 @@
+<!--
+Prototype Pattern Demo: Clone an existing food order (Swiggy-style) to reorder quickly.
+- Save this file as prototype_pattern_clone_order.html and open in a browser.
+- Demonstrates the Prototype pattern in JavaScript with deep vs shallow cloning.
+- UI: list of sample orders, "Clone Order" button to duplicate, edit, and place cloned order.
+-->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prototype Pattern — Clone Order (Food Delivery)</title>
+  <style>
+    :root{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;margin:0;color:#111}
+    body{background:linear-gradient(180deg,#f7f8fb,#fff);min-height:100vh;padding:36px}
+    .app{max-width:980px;margin:0 auto}
+    h1{font-size:20px;margin:0 0 8px}
+    p.lead{margin:0 0 22px;color:#555}
+
+    .orders{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+    .card{background:#fff;border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(17,24,39,0.06);}
+    .order-header{display:flex;align-items:center;justify-content:space-between}
+    .vendor{font-weight:700}
+    .meta{font-size:12px;color:#666}
+    ul.items{list-style:none;padding:8px 0 0;margin:0}
+    ul.items li{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #eee}
+    .controls{display:flex;gap:8px;margin-top:12px}
+    button{border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .btn-clone{background:#0ea5a1;color:#fff}
+    .btn-place{background:#2563eb;color:#fff}
+    .btn-edit{background:#f59e0b;color:#fff}
+    .panel{margin-top:20px}
+    .log{background:#0f172a;color:#e6eef6;padding:12px;border-radius:8px;font-family:monospace;white-space:pre-wrap;overflow:auto;max-height:220px}
+    .editor{display:grid;grid-template-columns:1fr 140px;gap:12px;align-items:start}
+    input[type='number']{width:70px}
+
+    footer{margin-top:18px;color:#777;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Prototype Pattern — Quick Reorder (Swiggy clone)</h1>
+    <p class="lead">Click <strong>Clone</strong> on an existing order to duplicate it (prototype), adjust quantities if you like, and <strong>Place</strong> the cloned order. The original order stays unchanged.</p>
+
+    <div id="orders" class="orders"></div>
+
+    <div class="panel">
+      <h3>Cloned Order Editor</h3>
+      <div id="cloneEditor" class="card" style="display:none">
+        <div class="editor">
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div id="cloneVendor" style="font-weight:700"></div>
+                <div id="cloneMeta" class="meta"></div>
+              </div>
+              <div>
+                <button id="placeBtn" class="btn-place">Place Cloned Order</button>
+              </div>
+            </div>
+
+            <ul id="cloneItems" class="items"></ul>
+          </div>
+
+          <div style="min-width:120px">
+            <div style="font-size:13px;color:#555;margin-bottom:8px">Summary</div>
+            <div style="font-weight:700;font-size:18px">₹ <span id="cloneTotal">0</span></div>
+            <div style="margin-top:10px;color:#666;font-size:13px">Tip</div>
+            <input id="tip" type="number" min="0" value="20" />
+            <div style="margin-top:10px">
+              <button id="resetBtn" class="btn-edit">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px">
+      <h3>Activity Log</h3>
+      <div id="log" class="log">Ready.
+</div>
+    </div>
+
+    <footer>Prototype pattern implemented with <code>Order.prototype.clone()</code>. Uses a deep clone (structuredClone fallback) so nested objects are copied.</footer>
+  </div>
+
+  <script>
+    // ---------- Prototype Pattern Implementation ----------
+    // Order constructor (could come from server)
+    function Order(id, vendorName, items, deliveryAddress, placedAt) {
+      this.id = id;
+      this.vendorName = vendorName;
+      this.items = items; // array of {name, qty, price}
+      this.deliveryAddress = deliveryAddress;
+      this.placedAt = placedAt || new Date().toISOString();
+    }
+
+    // Add behavior on the prototype: calculate total and clone
+    Order.prototype.total = function() {
+      return this.items.reduce((s,i)=> s + i.qty * i.price, 0);
+    };
+
+    // clone method implements Prototype pattern
+    Order.prototype.clone = function() {
+      // Use structuredClone when available (deep clone). Fallback to JSON deep clone.
+      let copy;
+      if (typeof structuredClone === 'function') {
+        copy = structuredClone(this);
+      } else {
+        copy = JSON.parse(JSON.stringify(this));
+      }
+      // We'll set a new id and placedAt for cloned order to show it's a separate instance
+      copy.id = 'cloned-' + Math.random().toString(36).slice(2,8);
+      copy.placedAt = new Date().toISOString();
+      // Convert plain object back into Order so methods are available
+      const newOrder = Object.assign(Object.create(Order.prototype), copy);
+      return newOrder;
+    };
+
+    // ---------- Sample Data ----------
+    const sampleOrders = [
+      new Order('o1','Fasta Bites', [
+        {name:'Margherita Pizza', qty:1, price:249},
+        {name:'Garlic Bread', qty:2, price:79},
+      ], 'Flat 12B, MG Road, Bengaluru'),
+
+      new Order('o2','Curry Corner', [
+        {name:'Butter Chicken', qty:1, price:299},
+        {name:'Steamed Rice', qty:2, price:59},
+        {name:'Masala Papad', qty:1, price:39}
+      ], 'HNO 45, Indiranagar, Bengaluru'),
+
+      new Order('o3','Sushi World', [
+        {name:'Salmon Roll', qty:2, price:399},
+        {name:'Miso Soup', qty:1, price:99}
+      ], 'Sector 5, HSR Layout, Bengaluru')
+    ];
+
+    // ---------- UI & Interaction ----------
+    const ordersEl = document.getElementById('orders');
+    const logEl = document.getElementById('log');
+
+    function log(msg){
+      const time = new Date().toLocaleTimeString();
+      logEl.textContent = `[${time}] ${msg}\n` + logEl.textContent;
+    }
+
+    function renderOrders(){
+      ordersEl.innerHTML = '';
+      sampleOrders.forEach(order => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="order-header">
+            <div>
+              <div class="vendor">${escapeHtml(order.vendorName)}</div>
+              <div class="meta">Order ID: ${order.id} • ${new Date(order.placedAt).toLocaleString()}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:700">₹ ${order.total()}</div>
+              <div class="meta">${order.items.length} items</div>
+            </div>
+          </div>
+          <ul class="items">
+            ${order.items.map(it=>`<li><span>${escapeHtml(it.name)} x ${it.qty}</span><span>₹ ${it.price}</span></li>`).join('')}
+          </ul>
+          <div class="controls">
+            <button class="btn-clone">Clone</button>
+            <button class="btn-edit">View</button>
+          </div>
+        `;
+
+        const cloneBtn = card.querySelector('.btn-clone');
+        cloneBtn.addEventListener('click', ()=>onClone(order));
+
+        const viewBtn = card.querySelector('.btn-edit');
+        viewBtn.addEventListener('click', ()=>{
+          alert(`Order details for ${order.vendorName}:\nTotal ₹${order.total()}\nDeliver to: ${order.deliveryAddress}`);
+        });
+
+        ordersEl.appendChild(card);
+      });
+    }
+
+    // Basic escaping helper
+    function escapeHtml(s){
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Cloned order editor elements
+    const cloneEditor = document.getElementById('cloneEditor');
+    const cloneVendor = document.getElementById('cloneVendor');
+    const cloneMeta = document.getElementById('cloneMeta');
+    const cloneItems = document.getElementById('cloneItems');
+    const cloneTotal = document.getElementById('cloneTotal');
+    const placeBtn = document.getElementById('placeBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const tipInput = document.getElementById('tip');
+
+    let activeClonedOrder = null;
+
+    function onClone(order){
+      // Use prototype clone
+      const cloned = order.clone();
+      activeClonedOrder = cloned;
+      log(`Cloned order from ${order.id} → new id ${cloned.id}`);
+      openEditorFor(cloned);
+    }
+
+    function openEditorFor(order){
+      cloneEditor.style.display = 'block';
+      cloneVendor.textContent = order.vendorName;
+      cloneMeta.textContent = `Clone ID: ${order.id} • Deliver to: ${order.deliveryAddress}`;
+      renderCloneItems(order);
+      updateSummary();
+    }
+
+    function renderCloneItems(order){
+      cloneItems.innerHTML = '';
+      order.items.forEach((it, idx)=>{
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div style="flex:1">
+            <div style="font-weight:600">${escapeHtml(it.name)}</div>
+            <div class="meta">₹ ${it.price} each</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input data-idx="${idx}" type="number" min="0" value="${it.qty}" style="width:56px" />
+            <div style="width:70px;text-align:right">₹ <span>${it.qty * it.price}</span></div>
+          </div>
+        `;
+        const input = li.querySelector('input');
+        input.addEventListener('input', (e)=>{
+          const q = Number(e.target.value)||0;
+          order.items[idx].qty = q; // mutate cloned order only
+          const priceSpan = li.querySelector('span');
+          priceSpan.textContent = (q * order.items[idx].price);
+          updateSummary();
+        });
+        cloneItems.appendChild(li);
+      });
+    }
+
+    function updateSummary(){
+      if(!activeClonedOrder) return;
+      const total = activeClonedOrder.total();
+      const tip = Number(tipInput.value)||0;
+      cloneTotal.textContent = (total + tip);
+    }
+
+    tipInput.addEventListener('input', updateSummary);
+
+    placeBtn.addEventListener('click', ()=>{
+      if(!activeClonedOrder) return;
+      // "Place" the order — here we just log and push to sampleOrders to simulate
+      sampleOrders.push(activeClonedOrder);
+      log(`Placed cloned order ${activeClonedOrder.id} (vendor: ${activeClonedOrder.vendorName}) — total ₹${activeClonedOrder.total()} + tip ₹${Number(tipInput.value||0)}`);
+      activeClonedOrder = null;
+      cloneEditor.style.display = 'none';
+      renderOrders();
+    });
+
+    resetBtn.addEventListener('click', ()=>{
+      activeClonedOrder = null;
+      cloneEditor.style.display = 'none';
+      log('Cancelled cloned order editing.');
+    });
+
+    // ---------- Demonstrate difference between shallow vs deep clone ----------
+    // (not visible to user directly, but logged)
+    (function demoCloneSafety(){
+      const original = sampleOrders[0];
+      const shallow = Object.assign({}, original); // shallow copy: items still reference same array
+      const deep = original.clone();
+
+      // modify shallow's first item quantity — this will affect original if shallow copy used incorrectly
+      if(shallow.items && shallow.items[0]) shallow.items[0].qty = shallow.items[0].qty + 10;
+      log('Demonstration: If shallow-clone used, modifying copy can change original (see first order qty change).');
+      // Reset original back (we shouldn't leave mutated by demo) — recreate sampleOrders[0]
+      sampleOrders[0] = new Order(original.id, original.vendorName, [
+        {name:'Margherita Pizza', qty:1, price:249},
+        {name:'Garlic Bread', qty:2, price:79},
+      ], original.deliveryAddress, original.placedAt);
+    })();
+
+    // initial render
+    renderOrders();
+
+  </script>
+</body>
+</html>
